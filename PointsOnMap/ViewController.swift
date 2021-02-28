@@ -36,8 +36,23 @@ class customPin: NSObject, MKAnnotation {
 
 
 class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControllerDelegate {
+    var locationLatitude = 0.0
+    var locationLongitude = 0.0
+    
     //@IBOutlet var mapView: MKMapView!
     @IBOutlet weak var mapView: MKMapView!
+//    @IBOutlet weak var directionButton: UIButton!
+    
+    @IBOutlet weak var directionButton: UIButton!
+    @IBAction func buttonClicked(_ sender: Any) {
+        print("clicked")
+        
+//        let latitude = view.annotation?.coordinate.latitude
+//        let longitude = view.annotation?.coordinate.longitude
+        print(locationLatitude ?? 0.0)
+        print(locationLongitude ?? 0.0)
+        openMap(lat: locationLatitude, long: locationLongitude, name: "HI")
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -52,10 +67,7 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         // Plotting each location
 
         var i = 0
-//        while (i < data.count) {
-//            print(data[i][1])
-//            i += 1
-//        }
+
         
         while(i < data.count) { // data.count
             let name = data[i][0]
@@ -88,7 +100,7 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         }
         zoomToZipCode(zipcode: "22033")
     }
-           
+    
 
     // This function creates a popup box above pins when clicked
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
@@ -104,13 +116,16 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
     
     // When user clicks a pin
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-//        if let annotationTitle = view.annotation?.title {
-//            print(annotationTitle)
-//        }
+
         let fpc = FloatingPanelController()
         fpc.hide()
         fpc.delegate = self
         
+        directionButton.isHidden = false
+        directionButton.isEnabled = true
+        
+        locationLatitude = view.annotation?.coordinate.latitude ?? 0.0
+        locationLongitude = view.annotation?.coordinate.longitude ?? 0.0
 
         guard let contentVC = storyboard?.instantiateViewController(identifier: "fpc_content") as? ContentViewController
         else {
@@ -147,10 +162,6 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         fpc.set(contentViewController: contentVC)
         fpc.addPanel(toParent: self, animated: true)
     }
-    
-    
-
-    
     // This function zooms into the given zipcode during the app startup
     func zoomToZipCode(zipcode: String) {
         // Zooming into zipcode
@@ -202,6 +213,27 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         //        cleanFile = cleanFile.replacingOccurrences(of: ";;", with: "")
         //        cleanFile = cleanFile.replacingOccurrences(of: ";\n", with: "")
         return cleanFile
+    }
+    
+    func openMap(lat: Double, long: Double, name: String) {
+
+        let latitute:CLLocationDegrees = lat
+        let longitute:CLLocationDegrees = long
+
+        let regionDistance:CLLocationDistance = 10000
+        let coordinates = CLLocationCoordinate2DMake(latitute, longitute)
+        let regionSpan = MKCoordinateRegion(center: coordinates, latitudinalMeters: regionDistance, longitudinalMeters: regionDistance)
+        
+        let options = [
+            MKLaunchOptionsMapCenterKey: NSValue(mkCoordinate: regionSpan.center),
+            MKLaunchOptionsMapSpanKey: NSValue(mkCoordinateSpan: regionSpan.span)
+        ]
+        
+        let placemark = MKPlacemark(coordinate: coordinates, addressDictionary: nil)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = "Hello"
+        mapItem.openInMaps(launchOptions: options)
+
     }
 }
 
