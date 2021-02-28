@@ -38,6 +38,7 @@ class customPin: NSObject, MKAnnotation {
 class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControllerDelegate {
     var locationLatitude = 0.0
     var locationLongitude = 0.0
+    var name: String = " "
     
     //@IBOutlet var mapView: MKMapView!
     @IBOutlet weak var mapView: MKMapView!
@@ -45,13 +46,9 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
     
     @IBOutlet weak var directionButton: UIButton!
     @IBAction func buttonClicked(_ sender: Any) {
-        print("clicked")
-        
-//        let latitude = view.annotation?.coordinate.latitude
-//        let longitude = view.annotation?.coordinate.longitude
         print(locationLatitude ?? 0.0)
         print(locationLongitude ?? 0.0)
-        openMap(lat: locationLatitude, long: locationLongitude, name: "HI")
+        openMap(lat: locationLatitude, long: locationLongitude, name: name)
     }
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -126,6 +123,10 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         
         locationLatitude = view.annotation?.coordinate.latitude ?? 0.0
         locationLongitude = view.annotation?.coordinate.longitude ?? 0.0
+        name = ((view.annotation?.title ?? " hi") ?? " ")
+        
+        
+     
 
         guard let contentVC = storyboard?.instantiateViewController(identifier: "fpc_content") as? ContentViewController
         else {
@@ -231,7 +232,7 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         
         let placemark = MKPlacemark(coordinate: coordinates, addressDictionary: nil)
         let mapItem = MKMapItem(placemark: placemark)
-        mapItem.name = "Hello"
+        mapItem.name = name
         mapItem.openInMaps(launchOptions: options)
 
     }
