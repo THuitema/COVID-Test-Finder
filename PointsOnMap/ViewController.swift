@@ -35,7 +35,10 @@ class customPin: NSObject, MKAnnotation {
 }
 
 
-class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControllerDelegate {
+class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControllerDelegate, UISearchBarDelegate {
+    // Global Variables
+    var data: Array<Array<String>> = []
+    
     var locationLatitude = 0.0
     var locationLongitude = 0.0
     var name: String = " "
@@ -44,14 +47,13 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
     @IBOutlet weak var mapView: MKMapView!
 //    @IBOutlet weak var directionButton: UIButton!
     
+    @IBOutlet weak var searchBar: UISearchBar!
     @IBOutlet weak var directionButton: UIButton!
-    @IBAction func buttonClicked(_ sender: Any) {
-        print(locationLatitude ?? 0.0)
-        print(locationLongitude ?? 0.0)
-        openMap(lat: locationLatitude, long: locationLongitude, name: name)
-    }
+    //let searchController
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        searchBar.delegate = self
         
         // Loading in data from CSV file
         var csv_data = readDataFromCSV(fileName: "locations2", fileType: "csv")
@@ -59,18 +61,35 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         var csvRows = csv(data: csv_data ?? "")
         csvRows.removeFirst()
         csvRows.removeLast()
-        let data = csvRows
-        
-        // Plotting each location
+        data = csvRows
 
+        // Initial zoom to show all of Virginia
+        let latitute:CLLocationDegrees = 39.5
+        let longitute:CLLocationDegrees = -79.0
+        let coordinates = CLLocationCoordinate2DMake(latitute, longitute)
+        let region = MKCoordinateRegion(center: coordinates, latitudinalMeters: 750000, longitudinalMeters: 750000)
+        self.mapView.setRegion(region, animated: true)
+        
+
+    }
+    
+    func plotPins(data: Array<Array<String>>, zipLat: Double, zipLong: Double) {
+        // Remove any existing pins on map
+        let allAnnotations = self.mapView.annotations
+        self.mapView.removeAnnotations(allAnnotations)
+        
+        // Making a coordinate box 20 km wide around zip code entered
+        let latMin = zipLat - (10000 / 1000 / 111)
+        let latMax = zipLat + (10000 / 1000 / 111)
+        let longMin = zipLong - (10000 / 1000 / 111)
+        let longMax = zipLong + (10000 / 1000 / 111)
+       
         var i = 0
-
-        
         while(i < data.count) { // data.count
             let name = data[i][0]
             let address = data[i][1]
             let phone = data[i][2]
-            
+
 
             let geoCoder = CLGeocoder()
             geoCoder.geocodeAddressString(address) {
@@ -78,27 +97,53 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
                 let placemark = placemarks?.first
                 let lat = placemark?.location?.coordinate.latitude
                 let long = placemark?.location?.coordinate.longitude
-                
-                
-//                print(Double(lat ?? 0.0))
-//                print(Double(long ?? 0.0))
-                
                 let pin = customPin(pinTitle: name,
                                     location: CLLocationCoordinate2D(latitude: Double(lat ?? 0.0), longitude: Double(long ?? 0.0)),
                                     phone: phone,
                                     address: address)
                 
-                
-                self.mapView.addAnnotation(pin)
+                // Plotting point only if it is within frame
+                if (lat ?? 0.0 >= latMin && lat ?? 0.0 <= latMax && long ?? 0.0 >= longMin && long ?? 0.0 <= longMax) {
+                    self.mapView.addAnnotation(pin)
+                }
+
                 self.mapView.delegate = self
             }
-            
+
             i += 1
         }
-        zoomToZipCode(zipcode: "22033")
     }
     
-
+    // Receives user input from search bar, zooms into zip code if valid
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let zipCode: String = searchBar.text ?? ""
+        searchBar.endEditing(true) // Hides keyboard after pressing search
+        
+        // Getting coordinates of zip code
+        let geocoder = CLGeocoder()
+        geocoder.geocodeAddressString(zipCode, completionHandler: {(placemarks, error) -> Void in
+            if((error) != nil){
+                print("Invalid Zip Code")
+            }
+            
+            if let placemark = placemarks?.first {
+                let latitude = placemark.location?.coordinate.latitude ?? 0.0
+                let longitude = placemark.location?.coordinate.longitude ?? 0.0
+                let coordinates = CLLocationCoordinate2DMake(latitude, longitude)
+                
+                self.zoomToZipCode(coordinates: coordinates)
+                self.plotPins(data: self.data, zipLat: latitude, zipLong: longitude)
+            }
+        })
+    }
+    
+    // This function zooms into the given zipcode during the app startup
+    func zoomToZipCode(coordinates: CLLocationCoordinate2D) {
+        // Zooming into zipcode
+        let region = MKCoordinateRegion(center: coordinates, latitudinalMeters: 25000, longitudinalMeters: 25000)
+        self.mapView.setRegion(region, animated: true)
+    }
+    
     // This function creates a popup box above pins when clicked
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
         if annotation is MKUserLocation {
@@ -120,14 +165,12 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         
         directionButton.isHidden = false
         directionButton.isEnabled = true
+        directionButton.alpha = 1.0;
         
         locationLatitude = view.annotation?.coordinate.latitude ?? 0.0
         locationLongitude = view.annotation?.coordinate.longitude ?? 0.0
         name = ((view.annotation?.title ?? " hi") ?? " ")
         
-        
-     
-
         guard let contentVC = storyboard?.instantiateViewController(identifier: "fpc_content") as? ContentViewController
         else {
             return
@@ -163,59 +206,8 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         fpc.set(contentViewController: contentVC)
         fpc.addPanel(toParent: self, animated: true)
     }
-    // This function zooms into the given zipcode during the app startup
-    func zoomToZipCode(zipcode: String) {
-        // Zooming into zipcode
-        let geocoder = CLGeocoder()
-        
-        geocoder.geocodeAddressString(zipcode, completionHandler: {(placemarks, error) -> Void in
-            if((error) != nil){
-                print("Error", error)
-            }
-            if let placemark = placemarks?.first {
-                let coordinates: CLLocationCoordinate2D = placemark.location!.coordinate
-                // zooms into a 50 x 50 km square
-                let region = MKCoordinateRegion(center: coordinates, latitudinalMeters: 100000, longitudinalMeters: 100000)
-                self.mapView.setRegion(region, animated: true)
-            }
-        })
-    }
     
-    func csv(data: String) -> [[String]] {
-        var result: [[String]] = []
-        let rows = data.components(separatedBy: "\n")
-        for row in rows {
-            let columns = row.components(separatedBy: ",")
-            result.append(columns)
-        }
-        return result
-    }
-    
-    func readDataFromCSV(fileName:String, fileType: String)-> String!{
-            guard let filepath = Bundle.main.path(forResource: fileName, ofType: fileType)
-                else {
-                    return nil
-            }
-            do {
-                var contents = try String(contentsOfFile: filepath, encoding: .utf8)
-                contents = cleanRows(file: contents)
-                return contents
-            } catch {
-                print("File Read Error for file \(filepath)")
-                return nil
-            }
-        }
-
-
-    func cleanRows(file:String)->String{
-        var cleanFile = file
-        cleanFile = cleanFile.replacingOccurrences(of: "\r", with: "\n")
-        cleanFile = cleanFile.replacingOccurrences(of: "\n\n", with: "\n")
-        //        cleanFile = cleanFile.replacingOccurrences(of: ";;", with: "")
-        //        cleanFile = cleanFile.replacingOccurrences(of: ";\n", with: "")
-        return cleanFile
-    }
-    
+    // Open apple maps when clicking "directions" button
     func openMap(lat: Double, long: Double, name: String) {
 
         let latitute:CLLocationDegrees = lat
@@ -235,6 +227,46 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         mapItem.name = name
         mapItem.openInMaps(launchOptions: options)
 
+    }
+    
+    // Directions button clicked
+    @IBAction func buttonClicked(_ sender: Any) {
+        openMap(lat: locationLatitude, long: locationLongitude, name: name)
+    }
+    
+    // reading csv data
+    func csv(data: String) -> [[String]] {
+        var result: [[String]] = []
+        let rows = data.components(separatedBy: "\n")
+        for row in rows {
+            let columns = row.components(separatedBy: ",")
+            result.append(columns)
+        }
+        return result
+    }
+    
+    // reading csv data
+    func readDataFromCSV(fileName:String, fileType: String)-> String!{
+            guard let filepath = Bundle.main.path(forResource: fileName, ofType: fileType)
+                else {
+                    return nil
+            }
+            do {
+                var contents = try String(contentsOfFile: filepath, encoding: .utf8)
+                contents = cleanRows(file: contents)
+                return contents
+            } catch {
+                print("File Read Error for file \(filepath)")
+                return nil
+            }
+        }
+
+    // cleaning csv data
+    func cleanRows(file:String)->String{
+        var cleanFile = file
+        cleanFile = cleanFile.replacingOccurrences(of: "\r", with: "\n")
+        cleanFile = cleanFile.replacingOccurrences(of: "\n\n", with: "\n")
+        return cleanFile
     }
 }
 
