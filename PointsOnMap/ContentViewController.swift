@@ -33,6 +33,7 @@ class ContentViewController: UIViewController, UITableViewDelegate, UITableViewD
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for:  indexPath)
         cell.textLabel?.text = data[indexPath.row]
+        cell.textLabel?.numberOfLines = 0 // wraps lines of text
         return cell
     }
 }

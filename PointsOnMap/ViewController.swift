@@ -43,13 +43,10 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
     var locationLongitude = 0.0
     var name: String = " "
     
-    //@IBOutlet var mapView: MKMapView!
     @IBOutlet weak var mapView: MKMapView!
-//    @IBOutlet weak var directionButton: UIButton!
     
     @IBOutlet weak var searchBar: UISearchBar!
     @IBOutlet weak var directionButton: UIButton!
-    //let searchController
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -117,6 +114,7 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
     // Receives user input from search bar, zooms into zip code if valid
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         let zipCode: String = searchBar.text ?? ""
+        print(zipCode)
         searchBar.endEditing(true) // Hides keyboard after pressing search
         
         // Getting coordinates of zip code
@@ -124,6 +122,7 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
         geocoder.geocodeAddressString(zipCode, completionHandler: {(placemarks, error) -> Void in
             if((error) != nil){
                 print("Invalid Zip Code")
+                print(error)
             }
             
             if let placemark = placemarks?.first {
@@ -185,24 +184,24 @@ class ViewController: UIViewController, MKMapViewDelegate, FloatingPanelControll
             subtitle = String(subtitle ?? "Info")
             
             let phone = String(subtitle ?? "").split(separator: "|")[0]
-            let address = String(subtitle ?? "").split(separator: "|")[1]
+            var address = String(subtitle ?? "").split(separator: "|")[1]
             let latitude = Double(view.annotation?.coordinate.latitude ?? 0.0)
             let longitude = Double(view.annotation?.coordinate.longitude ?? 0.0)
             
-            
-            // Set the 'click here' substring to be the link
-            
+            address.remove(at: address.startIndex) // removes space at beginning of address
+            address.insert("\n", at: address.index(address.startIndex, offsetBy: 9)) // Putting address on new line after "Address: "
+
+            // Setting rows in floating panel to location data
             contentVC.data = [String(title ?? ""),
                               String(phone ?? ""),
                               String(address ?? ""),
                 ]
         }
+        
         else {
-            print("hmm")
+            print("hmm... something's wrong")
         }
         
-
-                        
         fpc.set(contentViewController: contentVC)
         fpc.addPanel(toParent: self, animated: true)
     }
